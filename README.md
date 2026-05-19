@@ -28,7 +28,19 @@ completely fresh, delete `petswipe.db` and restart.
 
 ---
 
-## Architecture
+## Screenshots
+
+**Swipe view — card stack with drag tilt and color tint**
+![Swipe card 1](screenshots/swipe-1.png)
+![Swipe card 2](screenshots/swipe-2.png)
+
+**Results view — sorted, filterable aggregate votes**
+![Results board](screenshots/results.png)
+
+**End-of-deck state**
+![Empty state](screenshots/empty-state.png)
+
+---## Architecture
 
 The backend is a single **Flask** file (`app.py`) backed by one **SQLite**
 file (`petswipe.db`). It owns two tables — `items` (the pet catalog) and
