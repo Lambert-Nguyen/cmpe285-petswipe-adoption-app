@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0f0d0a" />
+<title>PetSwipe 🐾</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ----------------------------------------------------------------------
+     Design tokens — every color lives here as a CSS variable.
+  ---------------------------------------------------------------------- */
+  :root {
+    --bg:            #0f0d0a;
+    --bg-soft:       #1a1611;
+    --surface:       #221d16;
+    --surface-2:     #2c251c;
+    --border:        #3a3024;
+    --text:          #f5efe4;
+    --text-dim:      #b3a892;
+    --text-faint:    #7d745f;
+    --accent:        #fbbf24;
+    --accent-soft:   #f59e0b;
+    --accent-glow:   rgba(251, 191, 36, .35);
+    --yes:           #34d399;
+    --yes-deep:      #059669;
+    --no:            #f87171;
+    --no-deep:       #dc2626;
+    --shadow:        0 18px 50px rgba(0, 0, 0, .55);
+    --radius:        24px;
+    --radius-sm:     14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .serif { font-family: 'Playfair Display', Georgia, serif; }
+
+  /* App is a centered phone-sized column (mobile-first, 390x844). */
+  .app {
+    max-width: 440px;
+    height: 100dvh;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    background: radial-gradient(120% 80% at 50% 0%, var(--bg-soft) 0%, var(--bg) 60%);
+    position: relative;
+  }
+
+  /* ---- Progress bar ---------------------------------------------------- */
+  .progress-track {
+    height: 4px;
+    width: 100%;
+    background: var(--surface-2);
+    flex: none;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-soft), var(--accent));
+    border-radius: 0 4px 4px 0;
+    transition: width .4s cubic-bezier(.22, 1, .36, 1);
+  }
+
+  /* ---- Header ---------------------------------------------------------- */
+  header {
+    padding: 14px 20px 10px;
+    flex: none;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .brand h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+  }
+  .brand .paw { font-size: 20px; }
+  .brand .tag {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-left: auto;
+    align-self: center;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--surface);
+    padding: 5px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .tab {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 9px 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color .2s, background .2s;
+  }
+  .tab.active {
+    background: linear-gradient(180deg, var(--accent), var(--accent-soft));
+    color: #2a1e05;
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+
+  /* ---- View containers ------------------------------------------------- */
+  main { flex: 1; min-height: 0; position: relative; }
+  .view { position: absolute; inset: 0; display: none; flex-direction: column; }
+  .view.active { display: flex; }
+
+  /* ====================================================================== */
+  /*  SWIPE VIEW                                                            */
+  /* ====================================================================== */
+  .deck-wrap {
+    flex: 1;
+    position: relative;
+    margin: 6px 20px 0;
+  }
+
+  .card {
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+    transform-origin: center bottom;
+    user-select: none;
+  }
+  /* Stack effect: cards behind are scaled + pushed down. */
+  .card.pos-0 { z-index: 30; }
+  .card.pos-1 { z-index: 20; transform: scale(.94) translateY(14px); filter: brightness(.8); }
+  .card.pos-2 { z-index: 10; transform: scale(.88) translateY(28px); filter: brightness(.62); }
+  .card.pos-hidden { z-index: 0; transform: scale(.85) translateY(34px); opacity: 0; pointer-events: none; }
+
+  /* Smooth promote / snap-back. Suppressed while finger is down. */
+  .card.animate { transition: transform .45s cubic-bezier(.22, 1, .36, 1), filter .45s, opacity .45s; }
+
+  .card .photo {
+    height: 58%;
+    flex: none;
+    position: relative;
+    background: var(--surface-2);
+  }
+  .card .photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+  .card .photo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 55%, var(--surface) 100%);
+  }
+
+  .card .body {
+    flex: 1;
+    padding: 16px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  .name-row { display: flex; align-items: baseline; gap: 10px; }
+  .name-row h2 { font-size: 28px; font-weight: 800; line-height: 1; }
+  .age-badge {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(251, 191, 36, .12);
+    border: 1px solid rgba(251, 191, 36, .3);
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+    text-transform: capitalize;
+  }
+  .chip.personality { color: var(--accent); border-color: rgba(251,191,36,.25); }
+  .card .desc {
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    overflow: hidden;
+  }
+
+  /* Drag tint overlays + decision badges */
+  .tint {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s linear;
+  }
+  .tint.yes { background: linear-gradient(180deg, rgba(52,211,153,.05), rgba(5,150,105,.45)); }
+  .tint.no  { background: linear-gradient(180deg, rgba(248,113,113,.05), rgba(220,38,38,.45)); }
+
+  .stamp {
+    position: absolute;
+    top: 28px;
+    font-family: 'Playfair Display', serif;
+    font-weight: 800;
+    font-size: 34px;
+    letter-spacing: 2px;
+    padding: 6px 18px;
+    border: 4px solid;
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .stamp.adopt { left: 22px; color: var(--yes); border-color: var(--yes); transform: rotate(-16deg); }
+  .stamp.skip  { right: 22px; color: var(--no);  border-color: var(--no);  transform: rotate(16deg); }
+
+  /* ---- Action buttons -------------------------------------------------- */
+  .actions {
+    flex: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    padding: 18px 0 22px;
+  }
+  .act-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: #fff;
+    font-size: 26px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: transform .15s, box-shadow .2s, background .2s;
+  }
+  .act-btn:active { transform: scale(.88); }
+  .act-btn.no  { color: var(--no);  border-color: rgba(248,113,113,.4); }
+  .act-btn.yes { color: var(--yes); border-color: rgba(52,211,153,.4); }
+  .act-btn.no:hover  { background: rgba(248,113,113,.12); box-shadow: 0 0 0 6px rgba(248,113,113,.08); }
+  .act-btn.yes:hover { background: rgba(52,211,153,.12); box-shadow: 0 0 0 6px rgba(52,211,153,.08); }
+  .act-btn.small { width: 50px; height: 50px; font-size: 20px; }
+
+  /* ---- End-of-deck state ---------------------------------------------- */
+  .empty {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    gap: 14px;
+  }
+  .empty.show { display: flex; }
+  .empty .big { font-size: 60px; }
+  .empty h2 { font-size: 26px; }
+  .empty p { color: var(--text-dim); font-size: 15px; max-width: 260px; }
+  .btn-primary {
+    margin-top: 8px;
+    border: 0;
+    background: linear-gradient(180deg, var(--accent), var(--accent-soft));
+    color: #2a1e05;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 13px 26px;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 8px 22px var(--accent-glow);
+  }
+  .btn-ghost {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 11px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  /* ====================================================================== */
+  /*  RESULTS VIEW                                                          */
+  /* ====================================================================== */
+  #view-results { padding: 4px 0 0; }
+
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    padding: 8px 20px 14px;
+    flex: none;
+  }
+  .stat {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .stat .num { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 800; color: var(--accent); }
+  .stat .lbl { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 20px 12px;
+    flex: none;
+  }
+  .sort-row { display: flex; gap: 6px; }
+  .sort-btn {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 9px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .18s;
+  }
+  .sort-btn.active {
+    background: rgba(251,191,36,.14);
+    color: var(--accent);
+    border-color: rgba(251,191,36,.4);
+  }
+  .filter-row { display: flex; align-items: center; gap: 8px; }
+  .filter-row label { font-size: 12.5px; color: var(--text-faint); }
+  select {
+    flex: 1;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .results-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 16px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .results-list::-webkit-scrollbar { width: 6px; }
+  .results-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .rrow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .rank {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-faint);
+    width: 26px;
+    text-align: center;
+    flex: none;
+  }
+  .rrow:nth-child(1) .rank,
+  .rrow:nth-child(2) .rank,
+  .rrow:nth-child(3) .rank { color: var(--accent); }
+  .rthumb {
+    width: 52px; height: 52px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex: none;
+    background: var(--surface-2);
+  }
+  .rinfo { flex: 1; min-width: 0; }
+  .rinfo .rn { font-weight: 700; font-size: 15px; }
+  .rinfo .rb { font-size: 11.5px; color: var(--text-faint); text-transform: capitalize; margin-bottom: 6px; }
+  .bar {
+    height: 7px;
+    background: var(--no-deep);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--yes-deep), var(--yes)); }
+  .rstats {
+    text-align: right;
+    flex: none;
+    font-size: 12px;
+    color: var(--text-dim);
+    min-width: 58px;
+  }
+  .rstats .pct { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 800; color: var(--text); }
+  .rstats .pct.zero { color: var(--text-faint); }
+  .rcount { margin-top: 2px; }
+
+  .loading, .list-empty {
+    text-align: center;
+    color: var(--text-faint);
+    padding: 50px 20px;
+    font-size: 14px;
+  }
+
+  /* Generic full-screen loader before the deck is ready. */
+  #boot {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    background: var(--bg);
+    z-index: 100;
+    color: var(--text-faint);
+    font-size: 14px;
+    gap: 14px;
+  }
+  #boot .spin {
+    width: 34px; height: 34px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (min-width: 480px) {
+    .app { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+  <header>
+    <div class="brand">
+      <span class="paw">🐾</span>
+      <h1>PetSwipe</h1>
+      <span class="tag" id="progressText">0 / 0</span>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tabSwipe">Swipe</button>
+      <button class="tab" id="tabResults">Results</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============== SWIPE VIEW ============== -->
+    <section class="view active" id="view-swipe">
+      <div class="deck-wrap" id="deck"></div>
+
+      <div class="empty" id="emptyState">
+        <div class="big">🐾</div>
+        <h2 class="serif">You've met them all!</h2>
+        <p>Thanks for helping every pet find a loving home. See how your picks stack up against everyone else.</p>
+        <button class="btn-primary" id="goResults">See the Results →</button>
+      </div>
+
+      <div class="actions" id="actions">
+        <button class="act-btn no"  id="btnNo"  title="Skip" aria-label="Skip">✕</button>
+        <button class="act-btn small" id="btnUndo" title="Undo last vote" aria-label="Undo">↩</button>
+        <button class="act-btn yes" id="btnYes" title="Adopt!" aria-label="Adopt">♥</button>
+      </div>
+    </section>
+
+    <!-- ============== RESULTS VIEW ============== -->
+    <section class="view" id="view-results">
+      <div class="stats-bar">
+        <div class="stat"><div class="num" id="stVotes">0</div><div class="lbl">Total Votes</div></div>
+        <div class="stat"><div class="num" id="stVoters">0</div><div class="lbl">Voters</div></div>
+        <div class="stat"><div class="num" id="stPets">0</div><div class="lbl">Pets</div></div>
+      </div>
+
+      <div class="controls">
+        <div class="sort-row">
+          <button class="sort-btn active" data-sort="most-loved">Most Loved</button>
+          <button class="sort-btn" data-sort="most-divisive">Most Divisive</button>
+          <button class="sort-btn" data-sort="most-voted">Most Voted</button>
+        </div>
+        <div class="filter-row">
+          <label for="speciesFilter">Filter</label>
+          <select id="speciesFilter">
+            <option value="all">All species</option>
+            <option value="dog">Dogs</option>
+            <option value="cat">Cats</option>
+            <option value="rabbit">Rabbits</option>
+            <option value="bird">Birds</option>
+            <option value="hamster">Hamsters</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="results-list" id="resultsList">
+        <div class="loading">Loading results…</div>
+      </div>
+    </section>
+  </main>
+
+  <div id="boot"><div><div class="spin"></div>Fetching adoptable friends…</div></div>
+</div>
+
+<script>
+"use strict";
+
+/* ======================================================================
+   PetSwipe frontend — vanilla JS, no build step.
+   ====================================================================== */
+
+/* ---- Session management ---------------------------------------------- */
+// Persist a stable per-browser session id so the deck resumes across reloads.
+const SESSION_KEY = "petswipe_session";
+let sessionId = localStorage.getItem(SESSION_KEY);
+if (!sessionId) {
+  sessionId = (crypto.randomUUID && crypto.randomUUID()) ||
+              ("sess-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+  localStorage.setItem(SESSION_KEY, sessionId);
+}
+
+/* ---- State ----------------------------------------------------------- */
+let allItems = [];      // every pet from the API
+let queue = [];         // not-yet-voted pets, in order (top = index 0)
+let totalCount = 0;     // total pets in the catalog
+let votedCount = 0;     // how many this session has voted on
+let lastVote = null;    // { item, choice } — supports a single-step undo
+const SWIPE_THRESHOLD = 80;   // px of horizontal drag needed to commit a vote
+
+/* ---- Tiny DOM helpers ------------------------------------------------ */
+const $ = (id) => document.getElementById(id);
+const deck = $("deck");
+
+/* ====================================================================== */
+/*  Boot: load catalog and build the deck                                 */
+/* ====================================================================== */
+async function boot() {
+  try {
+    const res = await fetch(`/api/items?session_id=${encodeURIComponent(sessionId)}`);
+    if (!res.ok) throw new Error("items request failed");
+    allItems = await res.json();
+  } catch (err) {
+    $("boot").innerHTML =
+      "<div>Couldn't reach the server. Is <code>python app.py</code> running?</div>";
+    return;
+  }
+
+  totalCount = allItems.length;
+  // Resume: skip pets this session already voted on.
+  queue = allItems.filter((p) => !p.voted);
+  votedCount = totalCount - queue.length;
+
+  updateProgress();
+  renderDeck();
+  $("boot").style.display = "none";
+}
+
+/* ====================================================================== */
+/*  Deck rendering — keep the top 3 cards in the DOM                       */
+/* ====================================================================== */
+function renderDeck() {
+  deck.innerHTML = "";
+
+  if (queue.length === 0) {
+    showEmptyState(true);
+    return;
+  }
+  showEmptyState(false);
+
+  // Render back-to-front so the top card is added last (highest z-index).
+  const visible = queue.slice(0, 3);
+  for (let i = visible.length - 1; i >= 0; i--) {
+    deck.appendChild(buildCard(visible[i], i));
+  }
+  attachDrag(deck.querySelector(".pos-0"));
+}
+
+function buildCard(pet, pos) {
+  const card = document.createElement("div");
+  card.className = `card pos-${pos}`;
+  card.dataset.id = pet.id;
+
+  card.innerHTML = `
+    <div class="photo">
+      <img src="${pet.image_url}" alt="${escapeHtml(pet.name)} the ${escapeHtml(pet.species)}"
+           loading="${pos === 0 ? "eager" : "lazy"}"
+           onerror="this.src='https://picsum.photos/seed/petfallback${pet.id}/400/500'" />
+    </div>
+    <div class="body">
+      <div class="name-row">
+        <h2 class="serif">${escapeHtml(pet.name)}</h2>
+        <span class="age-badge">${escapeHtml(pet.age)}</span>
+      </div>
+      <div class="meta-row">
+        <span class="chip">${escapeHtml(pet.breed)}</span>
+        <span class="chip">${escapeHtml(pet.species)}</span>
+        <span class="chip personality">${escapeHtml(pet.personality)}</span>
+      </div>
+      <p class="desc">${escapeHtml(pet.description)}</p>
+    </div>
+    <div class="tint yes"></div>
+    <div class="tint no"></div>
+    <div class="stamp adopt">ADOPT!</div>
+    <div class="stamp skip">SKIP</div>
+  `;
+  return card;
+}
+
+function showEmptyState(show) {
+  $("emptyState").classList.toggle("show", show);
+  deck.style.display = show ? "none" : "block";
+  $("actions").style.display = show ? "none" : "flex";
+}
+
+/* ====================================================================== */
+/*  Drag / swipe handling (pointer events cover mouse + touch)            */
+/* ====================================================================== */
+function attachDrag(card) {
+  if (!card) return;
+
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false;
+  const tintYes = card.querySelector(".tint.yes");
+  const tintNo  = card.querySelector(".tint.no");
+  const stampA  = card.querySelector(".stamp.adopt");
+  const stampS  = card.querySelector(".stamp.skip");
+
+  function down(e) {
+    dragging = true;
+    card.classList.remove("animate");
+    const p = point(e);
+    startX = p.x; startY = p.y; dx = 0; dy = 0;
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  function move(e) {
+    if (!dragging) return;
+    const p = point(e);
+    dx = p.x - startX;
+    dy = p.y - startY;
+    const rot = dx / 18;                       // tilt with drag angle
+    card.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+
+    const ratio = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
+    if (dx > 0) {
+      tintYes.style.opacity = ratio;
+      tintNo.style.opacity = 0;
+      stampA.style.opacity = dx > SWIPE_THRESHOLD ? 1 : 0;
+      stampS.style.opacity = 0;
+    } else if (dx < 0) {
+      tintNo.style.opacity = ratio;
+      tintYes.style.opacity = 0;
+      stampS.style.opacity = -dx > SWIPE_THRESHOLD ? 1 : 0;
+      stampA.style.opacity = 0;
+    } else {
+      tintYes.style.opacity = tintNo.style.opacity = 0;
+      stampA.style.opacity = stampS.style.opacity = 0;
+    }
+  }
+
+  function up() {
+    if (!dragging) return;
+    dragging = false;
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    card.classList.add("animate");
+
+    if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+      commitSwipe(card, dx > 0 ? "yes" : "no");
+    } else {
+      // Snap back to neutral.
+      card.style.transform = "";
+      tintYes.style.opacity = tintNo.style.opacity = 0;
+      stampA.style.opacity = stampS.style.opacity = 0;
+    }
+  }
+
+  card.addEventListener("pointerdown", down);
+}
+
+function point(e) {
+  return { x: e.clientX, y: e.clientY };
+}
+
+/* Fly the card off-screen, then record the vote and advance the deck. */
+function commitSwipe(card, choice) {
+  const dir = choice === "yes" ? 1 : -1;
+  const offX = dir * (window.innerWidth + 200);
+  const rot = dir * 22;
+  card.style.transform = `translate(${offX}px, ${-40}px) rotate(${rot}deg)`;
+  card.style.opacity = "0";
+
+  const pet = queue[0];
+  // Advance UI immediately for snappiness; the network call rides along.
+  setTimeout(() => advanceAfterVote(pet, choice), 280);
+  sendVote(pet.id, choice);
+}
+
+/* Button taps reuse the same fly-out animation as a manual swipe. */
+function triggerVote(choice) {
+  if (queue.length === 0) return;
+  const top = deck.querySelector(".pos-0");
+  if (!top) return;
+  top.classList.add("animate");
+  commitSwipe(top, choice);
+}
+
+function advanceAfterVote(pet, choice) {
+  lastVote = { item: pet, choice };
+  queue.shift();
+  votedCount = Math.min(votedCount + 1, totalCount);
+  updateProgress();
+  renderDeck();
+}
+
+/* ====================================================================== */
+/*  Voting API                                                            */
+/* ====================================================================== */
+async function sendVote(itemId, choice) {
+  try {
+    await fetch("/api/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId, choice, sessionId }),
+    });
+  } catch (err) {
+    // Non-fatal: the deck stays usable offline; results just won't update.
+    console.warn("Vote failed to send (will not block UI):", err);
+  }
+}
+
+/* Single-step undo — re-queues the most recent pet (server keeps its
+   first vote thanks to the UNIQUE constraint; this is a UI convenience). */
+$("btnUndo").addEventListener("click", () => {
+  if (!lastVote) return;
+  queue.unshift(lastVote.item);
+  votedCount = Math.max(votedCount - 1, 0);
+  lastVote = null;
+  updateProgress();
+  renderDeck();
+});
+
+/* ====================================================================== */
+/*  Progress bar                                                          */
+/* ====================================================================== */
+function updateProgress() {
+  const pct = totalCount ? (votedCount / totalCount) * 100 : 0;
+  $("progressFill").style.width = pct + "%";
+  $("progressText").textContent = `${votedCount} / ${totalCount}`;
+}
+
+/* ====================================================================== */
+/*  Tab navigation (no page reload — just toggle views)                   */
+/* ====================================================================== */
+function switchTab(tab) {
+  const swipe = tab === "swipe";
+  $("tabSwipe").classList.toggle("active", swipe);
+  $("tabResults").classList.toggle("active", !swipe);
+  $("view-swipe").classList.toggle("active", swipe);
+  $("view-results").classList.toggle("active", !swipe);
+  if (!swipe) loadResults();
+}
+$("tabSwipe").addEventListener("click", () => switchTab("swipe"));
+$("tabResults").addEventListener("click", () => switchTab("results"));
+$("goResults").addEventListener("click", () => switchTab("results"));
+$("btnYes").addEventListener("click", () => triggerVote("yes"));
+$("btnNo").addEventListener("click", () => triggerVote("no"));
+
+/* ====================================================================== */
+/*  Results view                                                          */
+/* ====================================================================== */
+let currentSort = "most-loved";
+let currentSpecies = "all";
+let resultsCache = [];
+
+document.querySelectorAll(".sort-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".sort-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentSort = btn.dataset.sort;
+    loadResults();
+  });
+});
+$("speciesFilter").addEventListener("change", (e) => {
+  currentSpecies = e.target.value;
+  renderResults();
+});
+
+async function loadResults() {
+  const list = $("resultsList");
+  list.innerHTML = '<div class="loading">Loading results…</div>';
+  try {
+    const [rRes, sRes] = await Promise.all([
+      fetch(`/api/results?sort=${encodeURIComponent(currentSort)}`),
+      fetch("/api/stats"),
+    ]);
+    const rData = await rRes.json();
+    const stats = await sRes.json();
+
+    $("stVotes").textContent = stats.total_votes;
+    $("stVoters").textContent = stats.total_sessions;
+    $("stPets").textContent = stats.total_items;
+
+    resultsCache = rData.results;
+    renderResults();
+  } catch (err) {
+    list.innerHTML = '<div class="list-empty">Couldn\'t load results. Try again.</div>';
+  }
+}
+
+function renderResults() {
+  const list = $("resultsList");
+  const rows =
+    currentSpecies === "all"
+      ? resultsCache
+      : resultsCache.filter((r) => r.species === currentSpecies);
+
+  if (rows.length === 0) {
+    list.innerHTML = '<div class="list-empty">No pets match this filter yet.</div>';
+    return;
+  }
+
+  list.innerHTML = rows
+    .map((r, i) => {
+      const zero = r.total_votes === 0;
+      return `
+      <div class="rrow">
+        <div class="rank">${i + 1}</div>
+        <img class="rthumb" src="${r.image_url}" alt="${escapeHtml(r.name)}"
+             loading="lazy"
+             onerror="this.src='https://picsum.photos/seed/petfallback${r.id}/120/120'" />
+        <div class="rinfo">
+          <div class="rn">${escapeHtml(r.name)}</div>
+          <div class="rb">${escapeHtml(r.breed)} · ${escapeHtml(r.species)}</div>
+          <div class="bar"><i style="width:${r.yes_pct}%"></i></div>
+        </div>
+        <div class="rstats">
+          <div class="pct ${zero ? "zero" : ""}">${zero ? "—" : r.yes_pct + "%"}</div>
+          <div class="rcount">👍 ${r.yes_count} · 👎 ${r.no_count}</div>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+/* ---- Utility --------------------------------------------------------- */
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+/* Go! */
+boot();
+</script>
+</body>
+</html>
