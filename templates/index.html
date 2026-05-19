@@ -625,7 +625,7 @@ function buildCard(pet, pos) {
     <div class="photo">
       <img src="${pet.image_url}" alt="${escapeHtml(pet.name)} the ${escapeHtml(pet.species)}"
            loading="${pos === 0 ? "eager" : "lazy"}"
-           onerror="this.src='https://picsum.photos/seed/petfallback${pet.id}/400/500'" />
+           onerror="this.onerror=null;this.src='https://loremflickr.com/400/500/${escapeHtml(pet.species)},pet?lock=${pet.id + 1000}'" />
     </div>
     <div class="body">
       <div class="name-row">
@@ -869,7 +869,7 @@ function renderResults() {
         <div class="rank">${i + 1}</div>
         <img class="rthumb" src="${r.image_url}" alt="${escapeHtml(r.name)}"
              loading="lazy"
-             onerror="this.src='https://picsum.photos/seed/petfallback${r.id}/120/120'" />
+             onerror="this.onerror=null;this.src='https://loremflickr.com/120/120/${escapeHtml(r.species)},pet?lock=${r.id + 1000}'" />
         <div class="rinfo">
           <div class="rn">${escapeHtml(r.name)}</div>
           <div class="rb">${escapeHtml(r.breed)} · ${escapeHtml(r.species)}</div>

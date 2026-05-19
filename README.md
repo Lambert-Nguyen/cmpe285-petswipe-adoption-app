@@ -87,7 +87,7 @@ dataset lives in one portable `petswipe.db` file that's trivial to reset.
 - [x] Vanilla HTML/CSS/JS single page served by Flask (no build step)
 - [x] Schema exactly as specified (`items`, `votes`, `UNIQUE` dedup)
 - [x] Exactly 100 seeded pets (40/30/12/10/8), unique charming names
-- [x] `picsum.photos/seed/pet{id}/400/500` images
+- [x] Real per-species pet photos (`loremflickr.com/400/500/{species}?lock={id}`)
 - [x] All 5 API endpoints (`/`, `/api/items`, `/api/vote`, `/api/results`, `/api/stats`)
 - [x] Input validation + `400` on bad input on `POST /api/vote`
 - [x] Idempotent voting via UNIQUE constraint
@@ -114,8 +114,9 @@ dataset lives in one portable `petswipe.db` file that's trivial to reset.
 - **Flask dev server.** `debug=True` and the built-in server are great for a
   demo but not production; a real deployment would use a WSGI server (gunicorn)
   and `debug=False`.
-- **Images depend on picsum.photos.** An internet connection is needed for pet
-  photos; an `onerror` fallback re-requests a stable seed if a load fails, but
+- **Images depend on loremflickr.com.** An internet connection is needed for
+  pet photos (real species-tagged Flickr photos, pinned per pet via `?lock=`);
+  an `onerror` fallback re-requests a different locked photo if a load fails, but
   fully offline use will show empty image areas.
 - **No pagination on results.** All 100 pets render at once. Fine here; a much
   larger catalog would want windowed/virtualized rendering.

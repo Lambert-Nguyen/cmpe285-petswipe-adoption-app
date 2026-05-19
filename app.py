@@ -90,9 +90,13 @@ def init_db():
         rows = []
         for name, breed, species, age, description, personality in SEED_PETS:
             # image_url uses the soon-to-be-assigned row id so each pet has a
-            # stable, unique image. AUTOINCREMENT starts at 1 on an empty table.
+            # stable image. AUTOINCREMENT starts at 1 on an empty table.
+            # LoremFlickr serves real photos matched to a keyword (the
+            # species); the ?lock= seed pins one photo per pet across loads.
             placeholder_id = len(rows) + 1
-            image_url = f"https://picsum.photos/seed/pet{placeholder_id}/400/500"
+            image_url = (
+                f"https://loremflickr.com/400/500/{species}?lock={placeholder_id}"
+            )
             rows.append(
                 (name, breed, species, age, description, image_url, personality)
             )
