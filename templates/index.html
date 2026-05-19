@@ -770,10 +770,33 @@ async function sendVote(itemId, choice) {
   }
 }
 
-/* Single-step undo — re-queues the most recent pet (server keeps its
-   first vote thanks to the UNIQUE constraint; this is a UI convenience). */
-$("btnUndo").addEventListener("click", () => {
+/* Single-step undo — attempts to retract the server-side vote, then
+   re-queues the most recent pet locally. The server endpoint is
+   POST /api/undo and returns `{ok: true, deleted: bool}`. We proceed with
+   the UI update regardless to keep the UX snappy; failures are logged. */
+$("btnUndo").addEventListener("click", async () => {
   if (!lastVote) return;
+  const itemId = lastVote.item.id;
+
+  try {
+    const res = await fetch("/api/undo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId, sessionId }),
+    });
+    if (!res.ok) {
+      console.warn("Undo request failed with status", res.status);
+    } else {
+      const body = await res.json();
+      if (!body.deleted) {
+        console.warn("Server reported no vote to delete (it may not have been recorded).");
+      }
+    }
+  } catch (err) {
+    console.warn("Undo failed (network error):", err);
+  }
+
+  // Re-queue locally so the user sees the undone card immediately.
   queue.unshift(lastVote.item);
   votedCount = Math.max(votedCount - 1, 0);
   lastVote = null;

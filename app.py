@@ -214,6 +214,48 @@ def api_vote():
     return jsonify({"ok": True, "duplicate": duplicate})
 
 
+@app.route("/api/undo", methods=["POST"])
+def api_undo():
+    """
+    Retract a previously recorded vote for a given `itemId` and `sessionId`.
+
+    Expected JSON body:
+        { "itemId": int, "sessionId": str }
+
+    Returns `{ok: True, deleted: bool}` where `deleted` is True when a
+    matching vote row was found and removed. This endpoint is intentionally
+    lightweight and uses the same session string the client stores in
+    `localStorage` to identify the voter's session.
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Request body must be JSON."}), 400
+
+    item_id = data.get("itemId")
+    session_id = data.get("sessionId")
+
+    if not isinstance(item_id, int) or isinstance(item_id, bool):
+        return jsonify({"error": "itemId must be an integer."}), 400
+    if not isinstance(session_id, str) or not session_id.strip():
+        return jsonify({"error": "sessionId must be a non-empty string."}), 400
+
+    db = get_db()
+
+    # Ensure the referenced pet exists for clearer error messages.
+    exists = db.execute("SELECT 1 FROM items WHERE id = ?", (item_id,)).fetchone()
+    if exists is None:
+        return jsonify({"error": f"No pet with id {item_id}."}), 400
+
+    cursor = db.execute(
+        "DELETE FROM votes WHERE item_id = ? AND session_id = ?",
+        (item_id, session_id.strip()),
+    )
+    db.commit()
+
+    deleted = cursor.rowcount > 0
+    return jsonify({"ok": True, "deleted": deleted})
+
+
 @app.route("/api/results")
 def api_results():
     """

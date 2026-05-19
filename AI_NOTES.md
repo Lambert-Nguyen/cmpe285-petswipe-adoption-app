@@ -59,4 +59,8 @@ aggregation and under-considered the empty-data state until prompted.
 	the server responds to `/api/items` and `/api/results` in the target
 	environment; I can add the script on request.
 
+- Implemented a server-side undo endpoint `POST /api/undo` and wired the
+  frontend undo button to call it so single-step undo now retracts the
+  recorded vote server-side as well as re-queuing the card locally.
+
 Updated: 2026-05-18

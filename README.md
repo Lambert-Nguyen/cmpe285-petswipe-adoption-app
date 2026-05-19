@@ -88,7 +88,7 @@ dataset lives in one portable `petswipe.db` file that's trivial to reset.
 - [x] Schema exactly as specified (`items`, `votes`, `UNIQUE` dedup)
 - [x] Exactly 100 seeded pets (40/30/12/10/8), unique charming names
 - [x] Real per-species pet photos (`loremflickr.com/400/500/{species}?lock={id}`)
-- [x] All 5 API endpoints (`/`, `/api/items`, `/api/vote`, `/api/results`, `/api/stats`)
+ - [x] All API endpoints (`/`, `/api/items`, `/api/vote`, `/api/undo`, `/api/results`, `/api/stats`)
 - [x] Input validation + `400` on bad input on `POST /api/vote`
 - [x] Idempotent voting via UNIQUE constraint
 - [x] Mobile-first dark theme, amber accent, DM Sans + Playfair Display
@@ -122,9 +122,10 @@ dataset lives in one portable `petswipe.db` file that's trivial to reset.
 - **Session = browser localStorage.** Clearing storage or using another
   browser/device creates a new voting identity. This is the standard trade-off
   for a no-login demo and is acceptable for the exam scope.
-- **Undo is client-side only.** It re-queues the card visually but does not
-  retract the recorded vote — a deliberate choice to keep the global tally
-  trustworthy (and consistent with the idempotency guarantee).
+ - **Undo:** The UI supports a single-step Undo and the backend exposes a
+   `POST /api/undo` endpoint to retract a previously recorded vote for the
+   same session. The frontend calls this endpoint when the user taps Undo so
+   the server-side vote is removed and the card is re-queued locally.
 - **Flask dev server.** `debug=True` and the built-in server are great for a
   demo but not production; a real deployment would use a WSGI server (gunicorn)
   and `debug=False`.
