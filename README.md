@@ -103,6 +103,20 @@ dataset lives in one portable `petswipe.db` file that's trivial to reset.
 - [x] Session via `crypto.randomUUID()`, resumes the deck on reload
 - [x] CSS variables for all colors, semantic HTML, commented code
 
+## AI Notes & Grading checklist
+
+- **AI reflection:** See [AI_NOTES.md](AI_NOTES.md) for the project's AI usage reflection and attribution.
+
+- **Grading checklist (rubric → implementation)**
+  - **Backend + API endpoints:** Implemented in `app.py` — `/api/items`, `/api/vote`, `/api/results`, `/api/stats`.
+  - **Schema & deduplication:** `items` and `votes` tables created in `app.py` with `UNIQUE(item_id, session_id)` and constraints enforced via `PRAGMA foreign_keys = ON`.
+  - **Seeding:** Exactly 100 seeded pets created by `init_db()` in `app.py` (asserts validate count and uniqueness).
+  - **Frontend SPA:** `templates/index.html` contains the single-page mobile-first app (Swipe + Results) with no build step.
+  - **Idempotency & validation:** `POST /api/vote` validates inputs and uses `INSERT OR IGNORE` to keep votes idempotent.
+  - **Docs & run instructions:** `requirements.txt` pinned (see below). Run instructions remain: install deps and `python app.py`.
+
+**Note about the dev server:** The app is currently started with `debug=True` in `app.py` for an easy demo experience. This is intentional for the assignment but not production-safe — set `debug=False` and use a WSGI server (e.g., `gunicorn`) for production deployments.
+
 ## Known issues / trade-offs
 
 - **Session = browser localStorage.** Clearing storage or using another

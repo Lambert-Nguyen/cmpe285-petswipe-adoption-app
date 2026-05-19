@@ -49,3 +49,14 @@ positions and risked a divide-by-zero on `yes_pct`. I had to specify that
 unvoted pets should sink to the bottom of every sort and that `yes_pct` must
 default to `0.0` when total votes is zero. Claude reached for the "happy path"
 aggregation and under-considered the empty-data state until prompted.
+
+## Edits applied after review
+
+- Pinned Flask in `requirements.txt` to `Flask==2.3.3` to reduce environment
+	variability when running the app locally or in CI.
+- Added a short **Grading checklist** and a link to this file from `README.md`.
+- Recommendation: run a small smoke test script (or curl requests) to verify
+	the server responds to `/api/items` and `/api/results` in the target
+	environment; I can add the script on request.
+
+Updated: 2026-05-18
